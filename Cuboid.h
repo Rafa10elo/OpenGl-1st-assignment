@@ -1,6 +1,10 @@
 #pragma once
 #include "Polygon.h"
 #include <array>
+#include "Shader.h"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+
 
 class Cuboid : public Polygon {
 public:
@@ -24,6 +28,22 @@ public:
         setupBuffers();
         setPosition(position);
         updateModelMatrix();
+    }
+    void drawRotated(Shader& shader, glm::mat4 view, glm::mat4 proj, float angle, glm::vec3 axis , glm::vec3 pivotPoint) {
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, pivotPoint);
+        model = glm::rotate(model, angle, axis);
+        model = glm::translate(model, m_position - pivotPoint);
+        model = glm::scale(model, m_scale);
+
+        shader.bind();
+        shader.setUniformMat4f("u_Model", model); 
+        shader.setUniformMat4f("u_View", view);
+        shader.setUniformMat4f("u_Proj", proj);      
+
+        glBindVertexArray(m_VAO);
+        glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
     }
 
 private:

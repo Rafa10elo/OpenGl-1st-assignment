@@ -88,7 +88,6 @@ public:
     }
 
 protected:
-
     void setupBuffers() {
         if (m_VAO){ glDeleteVertexArrays(1, &m_VAO); m_VAO = 0; }
         if (m_VBO) { glDeleteBuffers(1, &m_VBO); m_VBO = 0; }
