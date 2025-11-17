@@ -1,91 +1,66 @@
 #pragma once
 #include <vector>
+#include <GL/glew.h>
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#include <GL/glew.h>
 #include "Shader.h"
-
-#include "Texture.h"
-
 
 struct Vertex {
     glm::vec3 position;
     glm::vec2 texCoord;
+    glm::vec3 color;
 };
 
 class Polygon {
-private:
+protected:
     std::vector<Vertex> m_vertices;
     std::vector<unsigned int> m_indices;
+    GLuint m_VAO = 0, m_VBO = 0, m_EBO = 0;
 
-    unsigned int m_VAO = 0, m_VBO = 0, m_EBO = 0;
-    Shader* m_shader = nullptr;
-    Texture* m_texture = nullptr;
-
-    glm::vec3 m_position = glm::vec3(0.0f);
-    glm::vec3 m_rotation = glm::vec3(0.0f);
-    glm::vec3 m_scale = glm::vec3(1.0f);
+    glm::vec3 m_position {0.0f};
+    glm::vec3 m_rotation {0.0f};
+    glm::vec3 m_scale    {1.0f};
     glm::mat4 m_model = glm::mat4(1.0f);
 
-    glm::vec4 m_color = glm::vec4(1.0f);
+    glm::vec4 m_color {1.0f};
     bool m_useTexture = false;
 
     GLenum m_drawMode = GL_TRIANGLES;
 
 public:
+    Polygon()=default;
+
     Polygon(const std::vector<Vertex>& verts,
             const std::vector<unsigned int>& inds,
-            Shader* shader,
             GLenum drawMode = GL_TRIANGLES)
-            : m_vertices(verts), m_indices(inds), m_shader(shader), m_drawMode(drawMode)
+            : m_vertices(verts), m_indices(inds), m_drawMode(drawMode)
     {
         setupBuffers();
         updateModelMatrix();
     }
 
-    Polygon(const std::vector<Vertex>& verts, Shader* shader, GLenum drawMode = GL_TRIANGLES)
-            : m_vertices(verts), m_shader(shader), m_drawMode(drawMode)
+    Polygon(const std::vector<Vertex>& verts, GLenum drawMode = GL_TRIANGLES)
+            : m_vertices(verts), m_drawMode(drawMode)
     {
         setupBuffers();
         updateModelMatrix();
     }
 
-    ~Polygon() {
+     ~Polygon() {
         if (m_EBO) glDeleteBuffers(1, &m_EBO);
         if (m_VBO) glDeleteBuffers(1, &m_VBO);
         if (m_VAO) glDeleteVertexArrays(1, &m_VAO);
     }
 
-    void setColor(const glm::vec4& color) {
-        m_color = color;
-    }
+    void setPosition(const glm::vec3& p){ m_position = p; updateModelMatrix(); }
+    void setRotation(const glm::vec3& r){ m_rotation = r; updateModelMatrix(); }
+    void setScale(const glm::vec3& s){ m_scale = s; updateModelMatrix(); }
+    void setColor(const glm::vec4& c){ m_color = c; }
+    void setDrawMode(GLenum m){ m_drawMode = m; }
 
-    void setTexture(Texture* tex) {
-        m_texture = tex;
-        m_useTexture = (tex != nullptr);
-    }
-
-    void setPosition(const glm::vec3& pos) {
-        m_position = pos;
-        updateModelMatrix();
-    }
-
-    void setRotation(const glm::vec3& rotDegrees) {
-        m_rotation = rotDegrees;
-        updateModelMatrix();
-    }
-
-    void setScale(const glm::vec3& scale) {
-        m_scale = scale;
-        updateModelMatrix();
-    }
-
-    glm::mat4 getModelMatrix() const { return m_model; }
-
-    void updateModelMatrix() {
-        glm::mat4 model = glm::mat4(1.0f);
+    void updateModelMatrix(){
+        glm::mat4 model(1.0f);
         model = glm::translate(model, m_position);
-        // rotation order: Z, Y, X (common)
         model = glm::rotate(model, glm::radians(m_rotation.z), glm::vec3(0,0,1));
         model = glm::rotate(model, glm::radians(m_rotation.y), glm::vec3(0,1,0));
         model = glm::rotate(model, glm::radians(m_rotation.x), glm::vec3(1,0,0));
@@ -93,22 +68,14 @@ public:
         m_model = model;
     }
 
-    void draw(const glm::mat4& view, const glm::mat4& proj) {
-        if (!m_shader) return;
-
-        m_shader->bind();
-
-        m_shader->setUniformMat4f("u_Model", m_model);
-        m_shader->setUniformMat4f("u_View", view);
-        m_shader->setUniformMat4f("u_Proj", proj);
-
-        m_shader->setUniformVec4f("u_Color", m_color);
-        m_shader->setUniform1i("u_UseTexture", m_useTexture ? 1 : 0);
-
-        if (m_useTexture && m_texture) {
-            m_texture->bind(0);
-            m_shader->setUniform1i("u_Diffuse", 0); // texture unit 0
-        }
+    virtual void draw(Shader& shader, const glm::mat4& view, const glm::mat4& proj) {
+        if (!shader.getID()) return;
+        shader.bind();
+        shader.setUniformMat4f("u_Model", m_model);
+        shader.setUniformMat4f("u_View", view);
+        shader.setUniformMat4f("u_Proj", proj);
+        shader.setUniformVec4f("u_Color", m_color);
+        shader.setUniform1i("u_UseTexture", m_useTexture ? 1 : 0);
 
         glBindVertexArray(m_VAO);
         if (!m_indices.empty()) {
@@ -116,17 +83,21 @@ public:
         } else {
             glDrawArrays(m_drawMode, 0, (GLsizei)m_vertices.size());
         }
-
         glBindVertexArray(0);
-        if (m_useTexture && m_texture) m_texture->unbind();
-        m_shader->unbind();
+        shader.unbind();
     }
 
-private:
+protected:
+
     void setupBuffers() {
+        if (m_VAO){ glDeleteVertexArrays(1, &m_VAO); m_VAO = 0; }
+        if (m_VBO) { glDeleteBuffers(1, &m_VBO); m_VBO = 0; }
+        if (m_EBO){ glDeleteBuffers(1, &m_EBO); m_EBO = 0; }
+
         glGenVertexArrays(1, &m_VAO);
         glGenBuffers(1, &m_VBO);
-        if (!m_indices.empty()) glGenBuffers(1, &m_EBO);
+        if (!m_indices.empty())
+            glGenBuffers(1, &m_EBO);
 
         glBindVertexArray(m_VAO);
 
@@ -143,6 +114,9 @@ private:
 
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
+
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, color));
 
         glBindVertexArray(0);
     }

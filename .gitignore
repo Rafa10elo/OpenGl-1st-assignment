@@ -2,7 +2,7 @@ build/
 Build/
 cmake-build-debug/
 cmake-build-release/
-
+CMakeLists.txt
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
