@@ -112,7 +112,6 @@ int main() {
                     glm::vec3(0.1f, 0.1f, 0.1f)
             }
     );
-
     Cuboid minuteHand(
             glm::vec3(0.f, 2.1f, 0.61f),
             glm::vec3(0.08f, 0.65f, 0.03f),
@@ -125,7 +124,6 @@ int main() {
                     glm::vec3(0.2f, 0.2f, 0.2f)
             }
     );
-
     Cuboid secondHand(
             glm::vec3(0.f, 2.1f, 0.62f),
             glm::vec3(0.04f, 0.75f, 0.02f),
